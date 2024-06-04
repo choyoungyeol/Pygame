@@ -2,41 +2,41 @@ import pygame
 import serial
 import time
 
-# Pygame 초기화
+# Pygame initialization
 pygame.init()
 
-# 화면 설정
+# Screen setup
 screen_size = (800, 600)
 screen = pygame.display.set_mode(screen_size)
-pygame.display.set_caption('Pygame Arduino Example')
+pygame.display.set_caption('Greenhouse DHT11 Sensor Readings')
 
-# 폰트 설정
-font = pygame.font.Font(None, 74)
-button_font = pygame.font.Font(None, 50)
-
-# 색상 설정
+# Font and color setup
+font = pygame.font.Font(None, 30)
+button_font = pygame.font.Font(None, 30)
 white = (255, 255, 255)
 black = (0, 0, 0)
 blue = (0, 0, 255)
 red = (255, 0, 0)
+green = (0, 255, 0)
+gray = (128, 128, 128)
 
-# Arduino와 시리얼 통신 설정
+# Arduino serial communication setup
 try:
-    arduino = serial.Serial('COM25', 9600)  # COM 포트는 실제 연결된 포트로 변경해야 합니다.
-    time.sleep(2)  # 시리얼 통신이 안정될 때까지 대기
+    arduino = serial.Serial('COM4', 9600)  # Change to the actual connected port
+    time.sleep(2)
 except serial.SerialException as e:
     print(f"Error opening the serial port: {e}")
     pygame.quit()
     exit()
 
-# 버튼 클래스 정의
+# Button class definition
 class Button:
     def __init__(self, text, pos, color, action):
         self.text = text
         self.pos = pos
         self.color = color
         self.action = action
-        self.rect = pygame.Rect(pos[0], pos[1], 200, 100)
+        self.rect = pygame.Rect(pos[0], pos[1], 100, 50)
     
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)
@@ -47,11 +47,24 @@ class Button:
     def is_clicked(self, event):
         return self.rect.collidepoint(event.pos)
 
-# 버튼 생성
-button_a = Button("ON", (150, 450), blue, 'a')
-button_b = Button("OFF", (450, 450), red, 'b')
+# Heater frame class definition
+class HeaterFrame:
+    def __init__(self):
+        self.rect = pygame.Rect(570, 400, 100, 100)
+        self.color = gray
+    
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, self.rect)
+        pygame.draw.rect(screen, black, self.rect, 2)
+        label_text = font.render("Heater", True, black)
+        label_rect = label_text.get_rect(center=(self.rect.centerx, self.rect.top - 20))
+        screen.blit(label_text, label_rect)
 
-# 메인 루프
+# Button instantiation
+button_on = Button("ON", (570, 400), blue, 'a')
+button_off = Button("OFF", (570, 450), red, 'b')
+
+# Main loop
 running = True
 temperature = "N/A"
 humidity = "N/A"
@@ -61,35 +74,43 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if button_a.is_clicked(event):
+            if button_on.is_clicked(event):
                 arduino.write(b'a')
-            elif button_b.is_clicked(event):
+            elif button_off.is_clicked(event):
                 arduino.write(b'b')
     
-    # 시리얼 데이터 읽기
     if arduino.in_waiting > 0:
         line = arduino.readline().decode('utf-8').strip()
         if ", " in line:
             temperature, humidity = line.split(", ")
     
-    # 화면 그리기
     screen.fill(white)
+    
+    # Draw greenhouse structure
+    pygame.draw.rect(screen, white, (100, 200, 600, 300))
+    pygame.draw.rect(screen, black, (100, 200, 600, 300), 2)
+    pygame.draw.polygon(screen, white, [(100, 200), (400, 100), (700, 200)])
+    pygame.draw.polygon(screen, black, [(100, 200), (400, 100), (700, 200)], 2)
+    
+    # Draw heater frame
+    heater_frame = HeaterFrame()
+    heater_frame.draw(screen)
+    
+    # Draw buttons
+    button_on.draw(screen)
+    button_off.draw(screen)
+    
+    # Display temperature and humidity
     temp_text = font.render(f"Temperature: {temperature} °C", True, black)
     hum_text = font.render(f"Humidity: {humidity} %", True, black)
-    screen.blit(temp_text, (50, 150))
-    screen.blit(hum_text, (50, 300)
-    
-    # 버튼 그리기
-    button_a.draw(screen)
-    button_b.draw(screen)
+    screen.blit(temp_text, (150, 250))
+    screen.blit(hum_text, (150, 300))
     
     pygame.display.flip()
-    
-    # 프레임 속도 설정
     pygame.time.Clock().tick(60)
 
-# Pygame 종료
+# Pygame cleanup
 pygame.quit()
 
-# 시리얼 통신 종료
+# Close the serial communication
 arduino.close()
